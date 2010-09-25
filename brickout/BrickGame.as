@@ -20,16 +20,35 @@
 		private var netConnection:NetConnection;
 		private var sendStream:NetStream;
 		private var recvStream:NetStream;
+		private var brickDefs = [];
+		private var mode:String;
 
 		public function BrickGame()
 		{
 			super();
-			txtConnected.visible = false;
+			//gotoAndPlay(1,"intro");
+			//btnCall.enabled = false;
 			stageWidthHalf = stage.width / 2;
-			//stage.addEventListener(MouseEvent.MOUSE_MOVE, mouseMoveListener);
-			this.btnCall.addEventListener(MouseEvent.CLICK, callClickHandler);
-			gotoAndPlay(1, "intro");
-			connectStratus();
+			//connectStratus();
+			client = new Object();
+			client.debug = function(msg:String):void
+			{
+			trace(msg);
+			};
+
+			client.setBrickDefs =  function(defs:*):void
+			{
+			trace("reception des bricks");
+			 brickDefs = defs as Array;
+			};
+			client.startGame = startGame;
+			initBrickDefs();
+			startGame();
+		}
+
+		private function startGame():void
+		{
+			gotoAndPlay(1,"game");
 		}
 
 		private function connectStratus():void
@@ -48,73 +67,76 @@
 				case "NetConnection.Connect.Success" :
 					trace("Connected, my ID: " + netConnection.nearID + "\n");
 					txtMyId.text = netConnection.nearID;
-					txtConnected.visible = true;
+					btnCall.enabled = true;
+					this.btnCall.addEventListener(MouseEvent.CLICK, callClickHandler);
 					sendStream = new NetStream(netConnection,NetStream.DIRECT_CONNECTIONS);
 					sendStream.addEventListener(NetStatusEvent.NET_STATUS,netConnectionHandler);
-					sendStream.publish('game');
-					break;
-
-				case "NetConnection.Connect.Closed" :
-					trace("netconnection closed");
+					sendStream.publish("game");
 					break;
 
 				case "NetStream.Connect.Success" :
 					if (recvStream == null)
 					{
-						gotoAndPlay(1,'starting');
-						txtPeerId.text = event.info.stream.farID;
+						this.mode = "server";
 						recvStream = new NetStream(netConnection,event.info.stream.farID);
 						recvStream.addEventListener(NetStatusEvent.NET_STATUS, netConnectionHandler);
+						recvStream.client = this.client;
+						recvStream.play("game");
+						initBrickDefs();
+						sendStream.send("setBrickDefs",brickDefs);
+						sendStream.send("startGame");
+						startGame();
 					}
-					break;
-
-				case "NetConnection.Connect.Failed" :
-					trace("Unable to connect to " + StratusAddress + "/" + DeveloperKey + "\n");
-					break;
-
-				case "NetStream.Connect.Closed" :
-					trace("netstream closed");
 					break;
 			}
 		}
 
 		private function callClickHandler(event:MouseEvent):void
 		{
+			this.mode = "client";
 			var remoteId:String = this.txtRemoteId.text;
-			gotoAndPlay(1,'starting');
+			gotoAndPlay(1,"starting");
 			txtPeerId.text = remoteId;
 			recvStream = new NetStream(netConnection,remoteId);
 			recvStream.addEventListener(NetStatusEvent.NET_STATUS, netConnectionHandler);
-			recvStream.play('game');
+			recvStream.client = this.client;
+			recvStream.play("game");
 		}
 
-		public function getGameLevel(level:int = 1):MovieClip
+		private var client:Object = null;
+		
+		private var xxx = 8;
+		private var yyy = 12;
+
+		private function initBrickDefs():void
 		{
-			if (levels[level] == null)
+			for (var yy:int = 0; yy<=yyy; yy++)
 			{
-
-				bricks = new MovieClip();
-
-				for (var yy:int = 0; yy<=7; yy++)
+				brickDefs[yy] = {};
+				for (var xx:int = 0; xx<=xxx; xx++)
 				{
-					for (var xx:int = 0; xx<=5; xx++)
-					{
-						var brick:Brick = new Brick();
-						brick.x = xx * brick.width + 15;
-						brick.y = yy * brick.height + 15;
-
-						bricks.addChild(brick);
-					}
+					brickDefs[yy][xx] = {};
+					brickDefs[yy][xx].rndWall = Math.round(Math.random() * 10) % 2;
+					brickDefs[yy][xx].rndLegume = (Math.round(Math.random()*10)%5)+1;
+					brickDefs[yy][xx].tourNumber = Math.round(Math.random() * 10) + 1;
+					brickDefs[yy][xx].sleepTime = Math.round(Math.random() * 1000) + 1;
 				}
-				levels[level] = bricks;
 			}
-			return levels[level];
+
 		}
 
-
-		public function startGame():void
+		public function initBricks():void
 		{
-			gotoAndPlay(1, "game");
+			for (var yy:Number = 0; yy<=yyy; yy++)
+			{
+				for (var xx:Number = 0; xx<=xxx; xx++)
+				{
+					var brick:Brick = new Brick(brickDefs[yy][xx], brickDefs,xx,yy);
+					brick.x = xx * Math.round(brick.width) + 50;
+					brick.y = yy * Math.round(brick.height) + 75;
+					bricksZone.addChild(brick);
+				}
+			}
 		}
 	}
 }
