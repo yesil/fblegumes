@@ -8,32 +8,40 @@
 	import flash.events.NetStatusEvent;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
+	import flash.display.DisplayObject;
 
 	public class BrickGame extends MovieClip
 	{
-		private var stageWidthHalf:int;
-		public var bricks:MovieClip;
-		public var level:int = 1;
+		private var stageWidthHalf:uint;
+		public var level:uint = 1;
 		private var levels:Array = new Array();
 		private const StratusAddress:String = "rtmfp://stratus.rtmfp.net";
 		private const DeveloperKey:String = "0e8780f03fc122388b0ff850-4e52140316e0";
 		private var netConnection:NetConnection;
 		private var sendStream:NetStream;
 		private var recvStream:NetStream;
-		private var brickDefs = [];
+		private var brickDefs:Array = [];
+		private var bricks:Array = [];
+		private var client:Object = null;
+		public var xxx = 8;
+		public var yyy = 12;
 		private var mode:String;
 
 		public function BrickGame()
 		{
 			super();
-			//gotoAndPlay(1,"intro");
-			//btnCall.enabled = false;
+			gotoAndPlay(1,"intro");
+			btnCall.enabled = false;
 			stageWidthHalf = stage.width / 2;
-			//connectStratus();
+			connectStratus();
 			client = new Object();
 			client.debug = function(msg:String):void
 			{
 			trace(msg);
+			};
+			client.removeBrick = function(xx:uint,yy:uint):void{
+			var brick:Brick = bricks[yy][xx];
+			removeBrick(brick,0,false);
 			};
 
 			client.setBrickDefs =  function(defs:*):void
@@ -42,8 +50,8 @@
 			 brickDefs = defs as Array;
 			};
 			client.startGame = startGame;
-			initBrickDefs();
-			startGame();
+			//initBrickDefs();
+			//startGame();
 		}
 
 		private function startGame():void
@@ -103,22 +111,17 @@
 			recvStream.play("game");
 		}
 
-		private var client:Object = null;
-		
-		private var xxx = 8;
-		private var yyy = 12;
-
 		private function initBrickDefs():void
 		{
-			for (var yy:int = 0; yy<=yyy; yy++)
+			for (var yy:uint = 0; yy<=yyy; yy++)
 			{
-				brickDefs[yy] = {};
-				for (var xx:int = 0; xx<=xxx; xx++)
+				brickDefs[yy] = [];
+				for (var xx:uint = 0; xx<=xxx; xx++)
 				{
 					brickDefs[yy][xx] = {};
-					brickDefs[yy][xx].rndWall = Math.round(Math.random() * 10) % 2;
-					brickDefs[yy][xx].rndLegume = (Math.round(Math.random()*10)%5)+1;
-					brickDefs[yy][xx].tourNumber = Math.round(Math.random() * 10) + 1;
+					brickDefs[yy][xx].backIndex = (Math.round(Math.random() * 10) % 2)+1;
+					brickDefs[yy][xx].overlayIndex = (Math.round(Math.random()*10)%5)+1;
+					brickDefs[yy][xx].tourCount = Math.round(Math.random() * 100) + 1;
 					brickDefs[yy][xx].sleepTime = Math.round(Math.random() * 1000) + 1;
 				}
 			}
@@ -127,16 +130,74 @@
 
 		public function initBricks():void
 		{
-			for (var yy:Number = 0; yy<=yyy; yy++)
+			for (var yy:uint= 0; yy<=yyy; yy++)
 			{
-				for (var xx:Number = 0; xx<=xxx; xx++)
+				bricks[yy] = [];
+				for (var xx:uint = 0; xx<=xxx; xx++)
 				{
-					var brick:Brick = new Brick(brickDefs[yy][xx], brickDefs,xx,yy);
+					var brickDef:* = brickDefs[yy][xx];
+					var brick:Brick = new Brick(xx,yy,brickDef.backIndex,brickDef.overlayIndex,brickDef.tourCount,brickDef.sleepTime);
 					brick.x = xx * Math.round(brick.width) + 50;
 					brick.y = yy * Math.round(brick.height) + 75;
+					brick.addEventListener(MouseEvent.CLICK, mouseClickHandler);
+					bricks[yy][xx] = brick;
 					bricksZone.addChild(brick);
 				}
 			}
+		}
+
+		private function mouseClickHandler(event:MouseEvent):void
+		{
+			var brick:Brick = event.currentTarget as Brick;
+			var count:uint = removeBrick(brick);
+		}
+
+		public function removeBrick(brick:Brick, count:uint = 0, send:Boolean = true):uint
+		{
+			if (brick.free && ! brick.removed)
+			{
+				count++;
+				brick.marked = true;
+				var lbrick:Brick = (brick.xx>0) ? bricks[brick.yy][brick.xx - 1] : null;
+				if (lbrick && ! lbrick.marked && brick.equals(lbrick))
+				{
+					count = removeBrick(lbrick,count,send);
+				}
+
+
+				var tbrick:Brick = (brick.yy>0) ? bricks[brick.yy - 1][brick.xx] : null;
+				if (tbrick && ! tbrick.marked && brick.equals(tbrick))
+				{
+					count = removeBrick(tbrick,count,send);
+				}
+
+				var rbrick:Brick = (brick.xx<xxx) ? bricks[brick.yy][brick.xx + 1] : null;
+				if (rbrick && ! rbrick.marked && brick.equals(rbrick))
+				{
+					count = removeBrick(rbrick,count,send);
+				}
+
+				var bbrick:Brick = (brick.yy<yyy) ? bricks[brick.yy + 1][brick.xx] : null;
+				if (bbrick && ! bbrick.marked && brick.equals(bbrick))
+				{
+					count = removeBrick(bbrick,count,send);
+				}
+				if (count > 1)
+				{
+					if (send)
+					{
+						sendStream.send("removeBrick",brick.xx,brick.yy);
+					}
+					trace("removing brick");
+					brick.removed = true;
+					bricksZone.removeChild(brick);
+				}
+				else
+				{
+					brick.marked = false;
+				}
+			}
+			return count;
 		}
 	}
 }
