@@ -10,6 +10,8 @@
 	import flash.utils.Timer;
 	import flash.filters.GlowFilter;
 	import flash.display.DisplayObject;
+	import fl.transitions.Tween;
+	import fl.motion.Animator;
 
 	public class Brick extends MovieClip
 	{
@@ -43,7 +45,7 @@
 			var back = new Bitmap(backBitmap);
 			brick.addChild(back);
 
-			var frontClasseName:String = "l" + overlayIndex;
+			var frontClasseName:String = "f" + overlayIndex;
 			var frontClassReference:Class = getDefinitionByName(frontClasseName) as Class;
 			var frontBitmap:BitmapData = new frontClassReference(64,32);
 			var front = new Bitmap(frontBitmap);
@@ -74,6 +76,11 @@
 		public function equals(brick:Brick):Boolean
 		{
 			return (brick.backIndex == backIndex && brick.overlayIndex == overlayIndex);
+		}
+
+		public function remove():void
+		{
+			gotoAndPlay(16);
 		}
 	}
 }
