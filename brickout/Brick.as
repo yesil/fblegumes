@@ -12,6 +12,9 @@
 	import flash.display.DisplayObject;
 	import fl.transitions.Tween;
 	import fl.motion.Animator;
+	import fl.transitions.TweenEvent;
+	import fl.motion.easing.Elastic;
+	import flash.events.Event;
 
 	public class Brick extends MovieClip
 	{
@@ -81,6 +84,11 @@
 		public function remove():void
 		{
 			gotoAndPlay(16);
+		}
+
+		public function moveToXY(toX:Number,toY:Number):void
+		{
+			var t:Tween = new Tween(this,"y",Elastic.easeOut,y,toY,1,true);
 		}
 	}
 }

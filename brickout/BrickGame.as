@@ -12,7 +12,11 @@
 	import fl.motion.Animator;
 	import fl.motion.MotionEvent;
 	import fl.motion.MotionBase;
-	import fl.motion.AnimatorFactory;
+	import fl.motion.AnimatorFactory3D;
+	import fl.motion.Animator3D;
+	import fl.transitions.Tween;
+	import fl.motion.easing.Elastic;
+	import flash.events.Event;
 
 	public class BrickGame extends MovieClip
 	{
@@ -30,8 +34,7 @@
 		public var xxx = 8;
 		public var yyy = 10;
 		private var mode:String;
-		private var standalone:Boolean = true;
-		private var animFactory:AnimatorFactory;
+		private var standalone:Boolean = false;
 
 		public function BrickGame()
 		{
@@ -159,12 +162,13 @@
 				{
 					var brickDef:* = brickDefs[yy][xx];
 					var brick:Brick = new Brick(xx,yy,brickDef.backIndex,brickDef.overlayIndex,brickDef.tourCount,brickDef.sleepTime);
-					brick.x = xx * Math.round(brick.width) + 50;
-					brick.y = yy * Math.round(brick.height) + 50;
+					brick.x = xx * brick.width + 50;
+					brick.y = yy * brick.height + 50;
 					brick.addEventListener(MouseEvent.CLICK,mouseClickHandler);
 					brick.scaleX = 1;
 					brick.scaleY = 1;
 					bricks[yy][xx] = brick;
+					brick.addEventListener(Event.REMOVED_FROM_STAGE, brickRemoved);
 					bricksZone.addChild(brick);
 				}
 			}
@@ -173,7 +177,49 @@
 		private function mouseClickHandler(event:MouseEvent):void
 		{
 			var brick:Brick = event.currentTarget as Brick;
-			var count:uint = removeBrick(brick);
+			removing = removeBrick(brick);
+			trace("Nombre de brique à supprimer: "+removing);
+		}
+
+		private function arrange():void
+		{
+			trace("ré-arrangement des briques");
+			for (var xx:uint = 0; xx <= xxx; xx++)
+			{
+				var c:uint = 0;
+				for (var yy = (yyy-1); yy >= 0; yy--)
+				{
+					for (var _yy = (yyy); _yy > yy; _yy--)
+					{
+
+						if (! bricks[_yy][xx])
+						{
+							c++;
+							break;
+						}
+					}
+					var b:Brick = bricks[yy][xx];
+					if (b)
+					{
+						bricks[yy][xx] = null;
+						bricks[yy + c][xx] = b;
+						b.moveToXY(xx, (yy+c)*b.height+50);
+					}
+				}
+			}
+		}
+
+		private var removing:int = 0;
+		private function brickRemoved(event:Event):void
+		{
+			removing--;
+			var brick:Brick = event.currentTarget as Brick;
+			trace("brique xx:" + brick.xx + " yy:"+brick.yy+" supprimé removing:"+removing);
+			delete bricks[brick.yy][brick.xx];
+			if (removing == 0)
+			{
+				arrange();
+			}
 		}
 
 		public function removeBrick(brick:Brick,count:uint=0,send:Boolean=true):uint
@@ -213,17 +259,6 @@
 						sendStream.send("removeBrick",brick.xx,brick.yy);
 					}
 					brick.removed = true;
-					if (tbrick)
-					{
-						tbrick.gotoAndStop(1);
-						var motionBase:MotionBase = new MotionBase();
-						motionBase.duration = 20;
-						motionBase.addPropertyArray("x",[0,50,95,134,169,199,225,247,265,280]);
-						motionBase.addPropertyArray("y",[0,1,0,4,12,21,32,44,52,38]);
-						animFactory = new AnimatorFactory(motionBase);
-						animFactory.transformationPoint = new Point(2,2);
-						animFactory.addTarget(tbrick, 0);
-					}
 					brick.remove();
 				}
 				else
