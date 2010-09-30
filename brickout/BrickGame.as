@@ -59,7 +59,7 @@
 			};
 			client.removeBrick = function(xx:uint,yy:uint):void{
 			var brick:Brick = bricks[yy][xx];
-			removeBrick(brick,0,false);
+			if(brick) removeBrick(brick,0);
 			};
 
 			client.setBrickDefs = function(defs:*):void
@@ -137,7 +137,9 @@
 
 		private function initBrickDefs():void
 		{
-			var tourCount:uint = this.standalone ? 1:100;
+			var tourCount:uint = this.standalone ? 1:10;
+			var overlayCount:uint = this.standalone ? 1:4;
+			var sleepTimeX:uint = this.standalone ? 10:2000;
 			for (var yy:uint = 0; yy <= yyy; yy++)
 			{
 				brickDefs[yy] = [];
@@ -145,20 +147,19 @@
 				{
 					brickDefs[yy][xx] = {};
 					brickDefs[yy][xx].backIndex = Math.round(Math.random() * 10) % 2 + 1;
-					brickDefs[yy][xx].overlayIndex = Math.round(Math.random() * 10) % 4 + 1;
+					brickDefs[yy][xx].overlayIndex = Math.round(Math.random() * 10) % overlayCount + 1;
 					brickDefs[yy][xx].tourCount = Math.round(Math.random() * tourCount) + 1;
-					brickDefs[yy][xx].sleepTime = Math.round(Math.random() * 2000) + 1;
+					brickDefs[yy][xx].sleepTime = Math.round(Math.random() * sleepTimeX) + 1;
 				}
 			}
-
 		}
 
 		public function initBricks():void
 		{
-			for (var yy:uint = 0; yy <= yyy; yy++)
+			for (var yy:uint = 0; yy < yyy; yy++)
 			{
 				bricks[yy] = [];
-				for (var xx:uint = 0; xx <= xxx; xx++)
+				for (var xx:uint = 0; xx < xxx; xx++)
 				{
 					var brickDef:* = brickDefs[yy][xx];
 					var brick:Brick = new Brick(xx,yy,brickDef.backIndex,brickDef.overlayIndex,brickDef.tourCount,brickDef.sleepTime);
@@ -177,30 +178,33 @@
 		private function mouseClickHandler(event:MouseEvent):void
 		{
 			var brick:Brick = event.currentTarget as Brick;
+			sendStream.send("removeBrick",brick.xx,brick.yy);
 			removing = removeBrick(brick);
-			trace("Nombre de brique à supprimer: "+removing);
+			if (removing > 1)
+			{
+				trace("Nombre de brique à supprimer: "+(removing-1));
+			}
 		}
 
 		private function arrange():void
 		{
 			trace("ré-arrangement des briques");
-			for (var xx:uint = 0; xx <= xxx; xx++)
+			var c:uint;
+			for (var xx = 0; xx <= xxx; xx++)
 			{
-				var c:uint = 0;
+				c = 0;
+				var found:Boolean = false;
 				for (var yy = (yyy-1); yy >= 0; yy--)
 				{
-					for (var _yy = (yyy); _yy > yy; _yy--)
+					if (! bricks[yy][xx])
 					{
-
-						if (! bricks[_yy][xx])
-						{
-							c++;
-							break;
-						}
+						c++;
+						found = true;
 					}
-					var b:Brick = bricks[yy][xx];
-					if (b)
+					if (bricks[yy][xx] && found)
 					{
+						var b:Brick = bricks[yy][xx];
+						b.yy = yy + c;
 						bricks[yy][xx] = null;
 						bricks[yy + c][xx] = b;
 						b.moveToXY(xx, (yy+c)*b.height+50);
@@ -215,14 +219,11 @@
 			removing--;
 			var brick:Brick = event.currentTarget as Brick;
 			trace("brique xx:" + brick.xx + " yy:"+brick.yy+" supprimé removing:"+removing);
-			delete bricks[brick.yy][brick.xx];
-			if (removing == 0)
-			{
-				arrange();
-			}
+			bricks[brick.yy][brick.xx] = null;
+			arrange();
 		}
 
-		public function removeBrick(brick:Brick,count:uint=0,send:Boolean=true):uint
+		public function removeBrick(brick:Brick,count:uint=0):uint
 		{
 			if (brick.free && ! brick.removed)
 			{
@@ -231,33 +232,29 @@
 				var lbrick:Brick = brick.xx > 0 ? bricks[brick.yy][brick.xx - 1]:null;
 				if (lbrick && ! lbrick.marked && brick.equals(lbrick))
 				{
-					count = removeBrick(lbrick,count,send);
+					count = removeBrick(lbrick,count);
 				}
 
 
 				var tbrick:Brick = brick.yy > 0 ? bricks[brick.yy - 1][brick.xx]:null;
 				if (tbrick && ! tbrick.marked && brick.equals(tbrick))
 				{
-					count = removeBrick(tbrick,count,send);
+					count = removeBrick(tbrick,count);
 				}
 
-				var rbrick:Brick = brick.xx < xxx ? bricks[brick.yy][brick.xx + 1]:null;
+				var rbrick:Brick = brick.xx < xxx - 1 ? bricks[brick.yy][brick.xx + 1]:null;
 				if (rbrick && ! rbrick.marked && brick.equals(rbrick))
 				{
-					count = removeBrick(rbrick,count,send);
+					count = removeBrick(rbrick,count);
 				}
 
-				var bbrick:Brick = brick.yy < yyy ? bricks[brick.yy + 1][brick.xx]:null;
+				var bbrick:Brick = brick.yy < yyy - 1 ? bricks[brick.yy + 1][brick.xx]:null;
 				if (bbrick && ! bbrick.marked && brick.equals(bbrick))
 				{
-					count = removeBrick(bbrick,count,send);
+					count = removeBrick(bbrick,count);
 				}
 				if (count > 1)
 				{
-					if (send && ! standalone)
-					{
-						sendStream.send("removeBrick",brick.xx,brick.yy);
-					}
 					brick.removed = true;
 					brick.remove();
 				}
