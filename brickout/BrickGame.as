@@ -110,11 +110,16 @@
 					if (recvStream == null)
 					{
 						this.mode = "server";
+						initBrickDefs();
 						recvStream = new NetStream(netConnection,event.info.stream.farID);
 						recvStream.addEventListener(NetStatusEvent.NET_STATUS,netConnectionHandler);
 						recvStream.client = this.client;
 						recvStream.play("game");
-						initBrickDefs();
+					}
+					break;
+				case "NetStream.Play.Start" :
+					if (this.mode == "server")
+					{
 						sendStream.send("setBrickDefs",brickDefs);
 						sendStream.send("startGame");
 						startGame();
@@ -169,7 +174,7 @@
 					brick.scaleX = 1;
 					brick.scaleY = 1;
 					bricks[yy][xx] = brick;
-					brick.addEventListener(Event.REMOVED_FROM_STAGE, brickRemoved);
+					brick.addEventListener(Event.REMOVED_FROM_STAGE,brickRemoved);
 					bricksZone.addChild(brick);
 				}
 			}
@@ -182,7 +187,7 @@
 			removing = removeBrick(brick);
 			if (removing > 1)
 			{
-				trace("Nombre de brique à supprimer: "+(removing-1));
+				trace("Nombre de brique à supprimer: " + removing);
 			}
 		}
 
@@ -194,7 +199,7 @@
 			{
 				c = 0;
 				var found:Boolean = false;
-				for (var yy = (yyy-1); yy >= 0; yy--)
+				for (var yy = yyy - 1; yy >= 0; yy--)
 				{
 					if (! bricks[yy][xx])
 					{
@@ -207,7 +212,7 @@
 						b.yy = yy + c;
 						bricks[yy][xx] = null;
 						bricks[yy + c][xx] = b;
-						b.moveToXY(xx, (yy+c)*b.height+50);
+						b.moveToXY(xx,(yy + c) * b.height + 50);
 					}
 				}
 			}
@@ -218,7 +223,7 @@
 		{
 			removing--;
 			var brick:Brick = event.currentTarget as Brick;
-			trace("brique xx:" + brick.xx + " yy:"+brick.yy+" supprimé removing:"+removing);
+			trace("brique xx:" + brick.xx + " yy:" + brick.yy + " supprimé removing:" + removing);
 			bricks[brick.yy][brick.xx] = null;
 			arrange();
 		}
@@ -232,26 +237,26 @@
 				var lbrick:Brick = brick.xx > 0 ? bricks[brick.yy][brick.xx - 1]:null;
 				if (lbrick && ! lbrick.marked && brick.equals(lbrick))
 				{
-					count = removeBrick(lbrick,count);
+					count +=  removeBrick(lbrick,count);
 				}
 
 
 				var tbrick:Brick = brick.yy > 0 ? bricks[brick.yy - 1][brick.xx]:null;
 				if (tbrick && ! tbrick.marked && brick.equals(tbrick))
 				{
-					count = removeBrick(tbrick,count);
+					count +=  removeBrick(tbrick,count);
 				}
 
 				var rbrick:Brick = brick.xx < xxx - 1 ? bricks[brick.yy][brick.xx + 1]:null;
 				if (rbrick && ! rbrick.marked && brick.equals(rbrick))
 				{
-					count = removeBrick(rbrick,count);
+					count +=  removeBrick(rbrick,count);
 				}
 
 				var bbrick:Brick = brick.yy < yyy - 1 ? bricks[brick.yy + 1][brick.xx]:null;
 				if (bbrick && ! bbrick.marked && brick.equals(bbrick))
 				{
-					count = removeBrick(bbrick,count);
+					count +=  removeBrick(bbrick,count);
 				}
 				if (count > 1)
 				{
